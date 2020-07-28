@@ -9,6 +9,8 @@ import os
 import data
 import model
 
+from torch.nn.utils import prune
+
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 
 parser = argparse.ArgumentParser(description='PyTorch SGNS and LogitSGNS Models',
@@ -39,6 +41,8 @@ parser.add_argument('--epsilon', type=float, default=0.01,
                     help='epsilon to be used in the LogitSGNS model')
 parser.add_argument('--gpu', default='0',
                     help='GPU to use')
+parser.add_argument('--target_prune', type=float, default=0.1,
+                    help='to prune till')
 
 args = parser.parse_args()
 
@@ -65,6 +69,10 @@ else:
     print("No such model:", args.model)
     exit(1)
 
+'''
+Go to init must be added
+'''
+
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
@@ -72,6 +80,10 @@ if use_cuda: skip_gram_model.cuda()
 
 epoch_size = dataset.data_len // args.batch_size
 optimizer = torch.optim.Adam(skip_gram_model.parameters())
+
+'''
+Train to be placed into function
+'''
 
 for epoch in range(args.epochs):
     last_time = time.time()
