@@ -83,7 +83,6 @@ def eval_skip_gram(skip_gram_model,my_data=my_data, args=args):
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
-if use_cuda: skip_gram_model.cuda()
 
 epoch_size = dataset.data_len // args.batch_size
 optimizer = torch.optim.Adam(skip_gram_model.parameters())
@@ -93,6 +92,9 @@ def to_device(data, device):
     if isinstance(data, (list, tuple)):
         return [to_device(x,device) for x in data]
     return data.to(device, non_blocking = True)
+
+if use_cuda: #skip_gram_model.cuda()
+    to_device(skip_gram_model, device)
 
 class gpudataloader:
     def __init__(self, dl, device):
@@ -110,80 +112,61 @@ class gpudataloader:
         return len(self.dl)
 
 dataloader = gpudataloader(dataloader,device)
-valid_dataloader = gpudataloader(dataloader,device)
+valid_dataloader = gpudataloader(valid_dataloader,device)
 
 
 
-'''
 
-vars:
-skip_gram_model
-args
-device
-optimizer
-epoch_size
-dataloader
-valid_dataloader
 
-pkgs:
-time
-os
-'''
+for epoch in range(args.epochs):
+    last_time = time.time()
+    last_words = 0
 
-def train(skip_gram_model = skip_gram_model, args = args, dataloader = dataloader,
-        valid_dataloader = valid_dataloader, epoch_size = epoch_size,
-        valid_epoch_size = valid_epoch_size, device = device,
-        optimizer = optimizer):
+    total_loss = 0.0
 
-    for epoch in range(args.epochs):
-        last_time = time.time()
-        last_words = 0
+    for step, batch in enumerate(dataloader):
+        pos_u = batch[0]#.to(device)
+        pos_v = batch[1]#.to(device)
+        neg_v = batch[2]#.to(device)
 
-        total_loss = 0.0
+        optimizer.zero_grad()
+        loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
+        loss.backward()
+        optimizer.step()
 
-        for step, batch in enumerate(dataloader):
-            pos_u = batch[0]#.to(device)
-            pos_v = batch[1]#.to(device)
-            neg_v = batch[2]#.to(device)
+        total_loss += loss.item()
 
-            optimizer.zero_grad()
-            loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
-            loss.backward()
-            optimizer.step()
+        if step % (epoch_size // 10) == 10:
+            print('%.2f' % (step * 1.0 / epoch_size), end=' ')
+            print('loss = %.3f' % (total_loss / (step + 1)), end=', ')
+            now_time = time.time()
+            now_words = step * args.batch_size
+            wps = (now_words - last_words) / (now_time - last_time)
+            print('wps = ' + str(int(wps)))
+            last_time = now_time
+            last_words = now_words
 
-            total_loss += loss.item()
+    print("Epoch: " + str(epoch + 1), end=", ")
+    print("Loss = %.3f" % (total_loss / epoch_size), end=", ")
 
-            if step % (epoch_size // 10) == 10:
-                print('%.2f' % (step * 1.0 / epoch_size), end=' ')
-                print('loss = %.3f' % (total_loss / (step + 1)), end=', ')
-                now_time = time.time()
-                now_words = step * args.batch_size
-                wps = (now_words - last_words) / (now_time - last_time)
-                print('wps = ' + str(int(wps)))
-                last_time = now_time
-                last_words = now_words
+    # Compute validation loss
+    if args.valid != None:
+        valid_epoch_size = valid_dataset.data_len // args.batch_size
+        valid_total_loss = 0.0
 
-        print("Epoch: " + str(epoch + 1), end=", ")
-        print("Loss = %.3f" % (total_loss / epoch_size), end=", ")
+        for valid_step, valid_batch in enumerate(valid_dataloader):
+            pos_u = valid_batch[0]#.to(device)
+            pos_v = valid_batch[1]#.to(device)
+            neg_v = valid_batch[2]#.to(device)
 
-        # Compute validation loss
-        if args.valid != None:
-            valid_epoch_size = valid_dataset.data_len // args.batch_size
-            valid_total_loss = 0.0
+            with torch.no_grad():
+                valid_loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
 
-            for valid_step, valid_batch in enumerate(valid_dataloader):
-                pos_u = valid_batch[0]#.to(device)
-                pos_v = valid_batch[1]#.to(device)
-                neg_v = valid_batch[2]#.to(device)
+            valid_total_loss += valid_loss.item()
 
-                with torch.no_grad():
-                    valid_loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
+        print("Valid Loss = %.3f" % (valid_total_loss / valid_epoch_size), end=', ')
 
-                valid_total_loss += valid_loss.item()
-
-            print("Valid Loss = %.3f" % (valid_total_loss / valid_epoch_size), end=', ')
-
-        eval_skip_gram(skip_gram_model)
+    eval_skip_gram(skip_gram_model)
 
 
 train()

@@ -24,10 +24,10 @@ class SkipGramModel(torch.nn.Module):
         cuda_using = next(self.parameters()).is_cuda
         if cuda_using:
             self.cpu()
-            torch.save(self.state.dict(), modelpath)
+            torch.save(self.state_dict(), modelpath)
             self.cuda()
         else:
-            torch.save(self.state.dict(), modelpath)
+            torch.save(self.state_dict(), modelpath)
 
     def load_state(self, modelpath='model/initstate.pth'):
         cuda_using = next(self.parameters()).is_cuda
