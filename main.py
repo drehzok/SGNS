@@ -167,6 +167,3 @@ for epoch in range(args.epochs):
         print("Valid Loss = %.3f" % (valid_total_loss / valid_epoch_size), end=', ')
 
     eval_skip_gram(skip_gram_model)
-
-
-train()
