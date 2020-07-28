@@ -22,7 +22,7 @@ parser.add_argument('--valid', type=str, default=None,
 parser.add_argument('--save_dir', type=str, default='embeddings',
                     help='path to save the word vectors')
 parser.add_argument('--save_file', type=str, default='sgns',
-                    help='path to save the word vectors')                    
+                    help='path to save the word vectors')
 parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
 parser.add_argument('--epochs', type=int, default=30,
@@ -44,26 +44,26 @@ args = parser.parse_args()
 
 
 if not os.path.exists(args.save_dir):
-  os.makedirs(args.save_dir)
+    os.makedirs(args.save_dir)
 
 my_data = data.DataReader(args.data, args.min_count)
 dataset = data.Word2vecDataset(my_data, args.window_size, args.neg_num)
 dataloader = torch.utils.data.DataLoader(
-  dataset, batch_size=args.batch_size, collate_fn=dataset.collate)
+    dataset, batch_size=args.batch_size, collate_fn=dataset.collate)
 
 if args.valid != None:
-  valid_dataset = data.ValidDataset(my_data, args.valid, args.window_size, args.neg_num)
-  valid_dataloader = torch.utils.data.DataLoader(
+    valid_dataset = data.ValidDataset(my_data, args.valid, args.window_size, args.neg_num)
+    valid_dataloader = torch.utils.data.DataLoader(
       valid_dataset, batch_size=args.batch_size, collate_fn=valid_dataset.collate)
 
 vocab_size = len(my_data.word2id)
-if args.model == 'sgns': 
-  skip_gram_model = model.SkipGramModel(vocab_size, args.emsize)
-elif args.model == 'lsgns': 
-  skip_gram_model = model.LogitSGNSModel(vocab_size, args.emsize, args.epsilon)
-else: 
-  print("No such model:", args.model)
-  exit(1)
+if args.model == 'sgns':
+    skip_gram_model = model.SkipGramModel(vocab_size, args.emsize)
+elif args.model == 'lsgns':
+    skip_gram_model = model.LogitSGNSModel(vocab_size, args.emsize, args.epsilon)
+else:
+    print("No such model:", args.model)
+    exit(1)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 use_cuda = torch.cuda.is_available()
@@ -74,56 +74,56 @@ epoch_size = dataset.data_len // args.batch_size
 optimizer = torch.optim.Adam(skip_gram_model.parameters())
 
 for epoch in range(args.epochs):
-  last_time = time.time()
-  last_words = 0
+    last_time = time.time()
+    last_words = 0
 
-  total_loss = 0.0
-  
-  for step, batch in enumerate(dataloader):
-    pos_u = batch[0].to(device)
-    pos_v = batch[1].to(device)
-    neg_v = batch[2].to(device)
+    total_loss = 0.0
 
-    optimizer.zero_grad()
-    loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
-    loss.backward()
-    optimizer.step()
+    for step, batch in enumerate(dataloader):
+        pos_u = batch[0].to(device)
+        pos_v = batch[1].to(device)
+        neg_v = batch[2].to(device)
 
-    total_loss += loss.item()
+        optimizer.zero_grad()
+        loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
+        loss.backward()
+        optimizer.step()
 
-    if step % (epoch_size // 10) == 10:
-      print('%.2f' % (step * 1.0 / epoch_size), end=' ')
-      print('loss = %.3f' % (total_loss / (step + 1)), end=', ')
-      now_time = time.time()
-      now_words = step * args.batch_size
-      wps = (now_words - last_words) / (now_time - last_time)
-      print('wps = ' + str(int(wps)))
-      last_time = now_time
-      last_words = now_words
+        total_loss += loss.item()
 
-  print("Epoch: " + str(epoch + 1), end=", ")
-  print("Loss = %.3f" % (total_loss / epoch_size), end=", ")
+        if step % (epoch_size // 10) == 10:
+            print('%.2f' % (step * 1.0 / epoch_size), end=' ')
+            print('loss = %.3f' % (total_loss / (step + 1)), end=', ')
+            now_time = time.time()
+            now_words = step * args.batch_size
+            wps = (now_words - last_words) / (now_time - last_time)
+            print('wps = ' + str(int(wps)))
+            last_time = now_time
+            last_words = now_words
 
-  # Compute validation loss
-  if args.valid != None:
-    valid_epoch_size = valid_dataset.data_len // args.batch_size
-    valid_total_loss = 0.0
+    print("Epoch: " + str(epoch + 1), end=", ")
+    print("Loss = %.3f" % (total_loss / epoch_size), end=", ")
 
-    for valid_step, valid_batch in enumerate(valid_dataloader):
-      pos_u = valid_batch[0].to(device)
-      pos_v = valid_batch[1].to(device)
-      neg_v = valid_batch[2].to(device)
+    # Compute validation loss
+    if args.valid != None:
+        valid_epoch_size = valid_dataset.data_len // args.batch_size
+        valid_total_loss = 0.0
 
-      with torch.no_grad():
-        valid_loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
+        for valid_step, valid_batch in enumerate(valid_dataloader):
+            pos_u = valid_batch[0].to(device)
+            pos_v = valid_batch[1].to(device)
+            neg_v = valid_batch[2].to(device)
 
-      valid_total_loss += valid_loss.item()
+            with torch.no_grad():
+                valid_loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
 
-    print("Valid Loss = %.3f" % (valid_total_loss / valid_epoch_size), end=', ')
-    
-  skip_gram_model.save_embedding(my_data.id2word, os.path.join(args.save_dir, args.save_file))
-  wv_from_text = KeyedVectors.load_word2vec_format(os.path.join(args.save_dir, args.save_file), binary=False)
-  ws353 = wv_from_text.evaluate_word_pairs(datapath('wordsim353.tsv'))
-  google = wv_from_text.evaluate_word_analogies(datapath('questions-words.txt'))
-  print('WS353 = %.3f' % ws353[0][0], end=', ')
-  print('Google = %.3f' % google[0])
+            valid_total_loss += valid_loss.item()
+
+        print("Valid Loss = %.3f" % (valid_total_loss / valid_epoch_size), end=', ')
+
+    skip_gram_model.save_embedding(my_data.id2word, os.path.join(args.save_dir, args.save_file))
+    wv_from_text = KeyedVectors.load_word2vec_format(os.path.join(args.save_dir, args.save_file), binary=False)
+    ws353 = wv_from_text.evaluate_word_pairs(datapath('wordsim353.tsv'))
+    google = wv_from_text.evaluate_word_analogies(datapath('questions-words.txt'))
+    print('WS353 = %.3f' % ws353[0][0], end=', ')
+    print('Google = %.3f' % google[0])
