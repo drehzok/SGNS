@@ -88,6 +88,32 @@ if use_cuda: skip_gram_model.cuda()
 epoch_size = dataset.data_len // args.batch_size
 optimizer = torch.optim.Adam(skip_gram_model.parameters())
 
+def to_device(data, device):
+    """Move tensors to chosen device"""
+    if isinstance(data, (list, tuple)):
+        return [to_device(x,device) for x in data]
+    return data.to(device, non_blocking = True)
+
+class gpudataloader:
+    def __init__(self, dl, device):
+        self.device = device
+        self.dl=[]
+        for b in dl:
+            self.dl.append(to_device(b, self.device))
+
+    def __iter__(self):
+        """Yield a batch of data after moving it to device"""
+        return iter(self.dl)
+
+    def __len__(self):
+        """Number of batches"""
+        return len(self.dl)
+
+dataloader = gpudataloader(dataloader,device)
+valid_dataloader = gpudataloader(dataloader,device)
+
+
+
 '''
 
 vars:
@@ -116,9 +142,9 @@ def train(skip_gram_model = skip_gram_model, args = args, dataloader = dataloade
         total_loss = 0.0
 
         for step, batch in enumerate(dataloader):
-            pos_u = batch[0].to(device)
-            pos_v = batch[1].to(device)
-            neg_v = batch[2].to(device)
+            pos_u = batch[0]#.to(device)
+            pos_v = batch[1]#.to(device)
+            neg_v = batch[2]#.to(device)
 
             optimizer.zero_grad()
             loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
@@ -146,9 +172,9 @@ def train(skip_gram_model = skip_gram_model, args = args, dataloader = dataloade
             valid_total_loss = 0.0
 
             for valid_step, valid_batch in enumerate(valid_dataloader):
-                pos_u = valid_batch[0].to(device)
-                pos_v = valid_batch[1].to(device)
-                neg_v = valid_batch[2].to(device)
+                pos_u = valid_batch[0]#.to(device)
+                pos_v = valid_batch[1]#.to(device)
+                neg_v = valid_batch[2]#.to(device)
 
                 with torch.no_grad():
                     valid_loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
