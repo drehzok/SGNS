@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from torch.nn.utils import prune
 
 
 class SkipGramModel(torch.nn.Module):
@@ -14,6 +15,28 @@ class SkipGramModel(torch.nn.Module):
         initrange = 1.0 / self.emb_dimension
         torch.nn.init.uniform_(self.u_embeddings.weight.data, -initrange, initrange)
         torch.nn.init.constant_(self.v_embeddings.weight.data, 0)
+
+    def prune_step(self, pstep, prune_method = prune.l1_unstructured):
+        prune_method(self.u_embeddings, name='weight', amount=pstep)
+        prune_method(self.v_embeddings, name='weight', amount=pstep)
+
+    def fix_state(self,modelpath='model/initstate.pth'):
+        cuda_using = next(self.parameters()).is_cuda
+        if cuda_using:
+            self.cpu()
+            torch.save(self.state.dict(), modelpath)
+            self.cuda()
+        else:
+            torch.save(self.state.dict(), modelpath)
+
+    def load_state(self, modelpath='model/initstate.pth'):
+        cuda_using = next(self.parameters()).is_cuda
+        if cuda_using:
+            self = SkipGramModel(self.vocab_size,self.emb_dimension)
+            self.load_state_dict(torch.load(modelpath))
+            self.cuda()
+        else:
+            self.load_state_dict(torch.load(modelpath))
 
     def forward(self, pos_u, pos_v, neg_v):
         emb_u = self.u_embeddings(pos_u)

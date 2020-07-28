@@ -9,7 +9,6 @@ import os
 import data
 import model
 
-from torch.nn.utils import prune
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 
@@ -37,12 +36,14 @@ parser.add_argument('--neg_num', type=int, default=5,
                     help='negative samples per training example')
 parser.add_argument('--min_count', type=int, default=5,
                     help='number of word occurrences for it to be included in the vocabulary')
-parser.add_argument('--epsilon', type=float, default=0.01,
-                    help='epsilon to be used in the LogitSGNS model')
+#parser.add_argument('--epsilon', type=float, default=0.01,
+#                    help='epsilon to be used in the LogitSGNS model')
 parser.add_argument('--gpu', default='0',
                     help='GPU to use')
 parser.add_argument('--target_prune', type=float, default=0.1,
                     help='to prune till')
+parser.add_argument('--prune_iter', type=int, default = 10,
+                    help='prune steps')
 
 args = parser.parse_args()
 
@@ -69,9 +70,15 @@ else:
     print("No such model:", args.model)
     exit(1)
 
-'''
-Go to init must be added
-'''
+skip_gram_model.fix_state()
+
+def eval_skip_gram(skip_gram_model,my_data=my_data, args=args):
+    skip_gram_model.save_embedding(my_data.id2word, os.path.join(args.save_dir, args.save_file))
+    wv_from_text = KeyedVectors.load_word2vec_format(os.path.join(args.save_dir, args.save_file), binary=False)
+    ws353 = wv_from_text.evaluate_word_pairs(datapath('wordsim353.tsv'))
+    google = wv_from_text.evaluate_word_analogies(datapath('questions-words.txt'))
+    print('WS353 = %.3f' % ws353[0][0], end=', ')
+    print('Google = %.3f' % google[0])
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 use_cuda = torch.cuda.is_available()
@@ -82,60 +89,75 @@ epoch_size = dataset.data_len // args.batch_size
 optimizer = torch.optim.Adam(skip_gram_model.parameters())
 
 '''
-Train to be placed into function
+
+vars:
+skip_gram_model
+args
+device
+optimizer
+epoch_size
+dataloader
+valid_dataloader
+
+pkgs:
+time
+os
 '''
 
-for epoch in range(args.epochs):
-    last_time = time.time()
-    last_words = 0
+def train(skip_gram_model = skip_gram_model, args = args, dataloader = dataloader,
+        valid_dataloader = valid_dataloader, epoch_size = epoch_size,
+        valid_epoch_size = valid_epoch_size, device = device,
+        optimizer = optimizer):
 
-    total_loss = 0.0
+    for epoch in range(args.epochs):
+        last_time = time.time()
+        last_words = 0
 
-    for step, batch in enumerate(dataloader):
-        pos_u = batch[0].to(device)
-        pos_v = batch[1].to(device)
-        neg_v = batch[2].to(device)
+        total_loss = 0.0
 
-        optimizer.zero_grad()
-        loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
-        loss.backward()
-        optimizer.step()
+        for step, batch in enumerate(dataloader):
+            pos_u = batch[0].to(device)
+            pos_v = batch[1].to(device)
+            neg_v = batch[2].to(device)
 
-        total_loss += loss.item()
+            optimizer.zero_grad()
+            loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
+            loss.backward()
+            optimizer.step()
 
-        if step % (epoch_size // 10) == 10:
-            print('%.2f' % (step * 1.0 / epoch_size), end=' ')
-            print('loss = %.3f' % (total_loss / (step + 1)), end=', ')
-            now_time = time.time()
-            now_words = step * args.batch_size
-            wps = (now_words - last_words) / (now_time - last_time)
-            print('wps = ' + str(int(wps)))
-            last_time = now_time
-            last_words = now_words
+            total_loss += loss.item()
 
-    print("Epoch: " + str(epoch + 1), end=", ")
-    print("Loss = %.3f" % (total_loss / epoch_size), end=", ")
+            if step % (epoch_size // 10) == 10:
+                print('%.2f' % (step * 1.0 / epoch_size), end=' ')
+                print('loss = %.3f' % (total_loss / (step + 1)), end=', ')
+                now_time = time.time()
+                now_words = step * args.batch_size
+                wps = (now_words - last_words) / (now_time - last_time)
+                print('wps = ' + str(int(wps)))
+                last_time = now_time
+                last_words = now_words
 
-    # Compute validation loss
-    if args.valid != None:
-        valid_epoch_size = valid_dataset.data_len // args.batch_size
-        valid_total_loss = 0.0
+        print("Epoch: " + str(epoch + 1), end=", ")
+        print("Loss = %.3f" % (total_loss / epoch_size), end=", ")
 
-        for valid_step, valid_batch in enumerate(valid_dataloader):
-            pos_u = valid_batch[0].to(device)
-            pos_v = valid_batch[1].to(device)
-            neg_v = valid_batch[2].to(device)
+        # Compute validation loss
+        if args.valid != None:
+            valid_epoch_size = valid_dataset.data_len // args.batch_size
+            valid_total_loss = 0.0
 
-            with torch.no_grad():
-                valid_loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
+            for valid_step, valid_batch in enumerate(valid_dataloader):
+                pos_u = valid_batch[0].to(device)
+                pos_v = valid_batch[1].to(device)
+                neg_v = valid_batch[2].to(device)
 
-            valid_total_loss += valid_loss.item()
+                with torch.no_grad():
+                    valid_loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
 
-        print("Valid Loss = %.3f" % (valid_total_loss / valid_epoch_size), end=', ')
+                valid_total_loss += valid_loss.item()
 
-    skip_gram_model.save_embedding(my_data.id2word, os.path.join(args.save_dir, args.save_file))
-    wv_from_text = KeyedVectors.load_word2vec_format(os.path.join(args.save_dir, args.save_file), binary=False)
-    ws353 = wv_from_text.evaluate_word_pairs(datapath('wordsim353.tsv'))
-    google = wv_from_text.evaluate_word_analogies(datapath('questions-words.txt'))
-    print('WS353 = %.3f' % ws353[0][0], end=', ')
-    print('Google = %.3f' % google[0])
+            print("Valid Loss = %.3f" % (valid_total_loss / valid_epoch_size), end=', ')
+
+        eval_skip_gram(skip_gram_model)
+
+
+train()
