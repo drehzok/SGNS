@@ -136,7 +136,7 @@ for prune_step in range(args.prune_iter):
             pos_u = batch[0]
             pos_v = batch[1]
             neg_v = batch[2]
-            if !all_data_to_gpu:
+            if not all_data_to_gpu:
                 pos_u = pos_u.to(device)
                 pos_v = pos_v.to(device)
                 neg_v = neg_v.to(device)
@@ -170,7 +170,7 @@ for prune_step in range(args.prune_iter):
                 pos_u = valid_batch[0]
                 pos_v = valid_batch[1]
                 neg_v = valid_batch[2]
-                if !all_data_to_gpu:
+                if not all_data_to_gpu:
                     pos_u = pos_u.to(device)
                     pos_v = pos_v.to(device)
                     neg_v = neg_v.to(device)
