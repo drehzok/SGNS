@@ -5,6 +5,7 @@ import gensim
 from gensim.models import KeyedVectors
 from gensim.test.utils import datapath
 import os
+import pandas as pd
 
 import data
 import model
@@ -26,7 +27,7 @@ parser.add_argument('--save_file', type=str, default='sgns',
                     help='path to save the word vectors')
 parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
-parser.add_argument('--epochs', type=int, default=30,
+parser.add_argument('--epochs', type=int, default=15,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=1024,
                     help='batch size')
@@ -40,9 +41,9 @@ parser.add_argument('--min_count', type=int, default=5,
 #                    help='epsilon to be used in the LogitSGNS model')
 parser.add_argument('--gpu', default='0',
                     help='GPU to use')
-parser.add_argument('--target_prune', type=float, default=0.1,
+parser.add_argument('--target_prune', type=float, default=0.05,
                     help='to prune till')
-parser.add_argument('--prune_iter', type=int, default = 10,
+parser.add_argument('--prune_iter', type=int, default = 30,
                     help='prune steps')
 
 args = parser.parse_args()
@@ -79,6 +80,7 @@ def eval_skip_gram(skip_gram_model,my_data=my_data, args=args):
     google = wv_from_text.evaluate_word_analogies(datapath('questions-words.txt'))
     print('WS353 = %.3f' % ws353[0][0], end=', ')
     print('Google = %.3f' % google[0])
+    return ws353[0][0], google[0]
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 use_cuda = torch.cuda.is_available()
@@ -111,14 +113,19 @@ class gpudataloader:
         """Number of batches"""
         return len(self.dl)
 
-#dataloader = gpudataloader(dataloader,device)
-#valid_dataloader = gpudataloader(valid_dataloader,device)
+all_data_to_gpu = True
+
+if all_data_to_gpu:
+    dataloader = gpudataloader(dataloader,device)
+    valid_dataloader = gpudataloader(valid_dataloader,device)
 
 
 
 pstep = args.target_prune**(1/args.prune_iter)
 #prune stats must be tracked
+logdict = dict()
 for prune_step in range(args.prune_iter):
+    loglist = list()
     for epoch in range(args.epochs):
         last_time = time.time()
         last_words = 0
@@ -126,17 +133,21 @@ for prune_step in range(args.prune_iter):
         total_loss = 0.0
 
         for step, batch in enumerate(dataloader):
-            pos_u = batch[0].to(device)
-            pos_v = batch[1].to(device)
-            neg_v = batch[2].to(device)
+            pos_u = batch[0]
+            pos_v = batch[1]
+            neg_v = batch[2]
+            if !all_data_to_gpu:
+                pos_u = pos_u.to(device)
+                pos_v = pos_v.to(device)
+                neg_v = neg_v.to(device)
 
             optimizer.zero_grad()
             loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
             loss.backward()
             optimizer.step()
-    
+
             total_loss += loss.item()
-    
+
             if step % (epoch_size // 10) == 10:
                 print('%.2f' % (step * 1.0 / epoch_size), end=' ')
                 print('loss = %.3f' % (total_loss / (step + 1)), end=', ')
@@ -156,9 +167,13 @@ for prune_step in range(args.prune_iter):
             valid_total_loss = 0.0
 
             for valid_step, valid_batch in enumerate(valid_dataloader):
-                pos_u = valid_batch[0].to(device)
-                pos_v = valid_batch[1].to(device)
-                neg_v = valid_batch[2].to(device)
+                pos_u = valid_batch[0]
+                pos_v = valid_batch[1]
+                neg_v = valid_batch[2]
+                if !all_data_to_gpu:
+                    pos_u = pos_u.to(device)
+                    pos_v = pos_v.to(device)
+                    neg_v = neg_v.to(device)
 
                 with torch.no_grad():
                     valid_loss = skip_gram_model.forward(pos_u, pos_v, neg_v)
@@ -167,5 +182,9 @@ for prune_step in range(args.prune_iter):
 
             print("Valid Loss = %.3f" % (valid_total_loss / valid_epoch_size), end=', ')
 
-        eval_skip_gram(skip_gram_model)
+        wsscore, googlescore = eval_skip_gram(skip_gram_model)
+        loglist.append((wsscore,googlescore))
+    logdict[pstep**(prune_step)] = loglist
     skip_gram_model.prune_step(pstep)
+
+pd.DataFrame.from_dict(logdict).to_csv('results.csv')
