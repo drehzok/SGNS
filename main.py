@@ -25,9 +25,9 @@ parser.add_argument('--save_dir', type=str, default='embeddings',
                     help='path to save the word vectors')
 parser.add_argument('--save_file', type=str, default='sgns',
                     help='path to save the word vectors')
-parser.add_argument('--emsize', type=int, default=200,
+parser.add_argument('--emsize', type=int, default=100,
                     help='size of word embeddings')
-parser.add_argument('--epochs', type=int, default=15,
+parser.add_argument('--epochs', type=int, default=3,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=1024,
                     help='batch size')
@@ -95,8 +95,8 @@ def to_device(data, device):
         return [to_device(x,device) for x in data]
     return data.to(device, non_blocking = True)
 
-if use_cuda: #skip_gram_model.cuda()
-    to_device(skip_gram_model, device)
+if use_cuda: skip_gram_model.cuda()
+#    to_device(skip_gram_model, device)
 
 class gpudataloader:
     def __init__(self, dl, device):
@@ -186,5 +186,8 @@ for prune_step in range(args.prune_iter):
         loglist.append((wsscore,googlescore))
     logdict[pstep**(prune_step)] = loglist
     skip_gram_model.prune_step(pstep)
+    skip_gram_model.cpu()
+    skip_gram_model.load_state()
+    skip_gram_model.cuda()
 
 pd.DataFrame.from_dict(logdict).to_csv('results.csv')
