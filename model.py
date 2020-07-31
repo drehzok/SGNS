@@ -30,13 +30,19 @@ class SkipGramModel(torch.nn.Module):
             torch.save(self.state_dict(), modelpath)
 
     def load_state(self, modelpath='model/initstate.pth'):
+        umask = dict(self.u_embeddings.named_buffers())['weight_mask'].cpu()
+        vmask = dict(self.v_embeddings.named_buffers())['weight_mask'].cpu()
         cuda_using = next(self.parameters()).is_cuda
+        self = SkipGramModel(self.vocab_size,self.emb_dimension)
         if cuda_using:
-            self = SkipGramModel(self.vocab_size,self.emb_dimension)
             self.load_state_dict(torch.load(modelpath))
+            prune.custom_from_mask(self.u_embeddings,name='weight',mask=umask)
+            prune.custom_from_mask(self.v_embeddings,name='weight',mask=vmask)
             self.cuda()
         else:
             self.load_state_dict(torch.load(modelpath))
+            prune.custom_from_mask(self.u_embeddings,name='weight',mask=umask)
+            prune.custom_from_mask(self.v_embeddings,name='weight',mask=vmask)
 
     def forward(self, pos_u, pos_v, neg_v):
         emb_u = self.u_embeddings(pos_u)
