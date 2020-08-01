@@ -25,9 +25,9 @@ parser.add_argument('--save_dir', type=str, default='embeddings',
                     help='path to save the word vectors')
 parser.add_argument('--save_file', type=str, default='sgns',
                     help='path to save the word vectors')
-parser.add_argument('--emsize', type=int, default=100,
+parser.add_argument('--emsize', type=int, default=50,
                     help='size of word embeddings')
-parser.add_argument('--epochs', type=int, default=3,
+parser.add_argument('--epochs', type=int, default=2,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=1024,
                     help='batch size')
@@ -188,6 +188,7 @@ for prune_step in range(args.prune_iter):
     skip_gram_model.prune_step(pstep)
     skip_gram_model.cpu()
     skip_gram_model.load_state()
-    skip_gram_model.cuda()
+    if use_cuda:
+        skip_gram_model.cuda()
 
 pd.DataFrame.from_dict(logdict).to_csv('results.csv')
