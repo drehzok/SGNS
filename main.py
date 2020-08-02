@@ -25,9 +25,9 @@ parser.add_argument('--save_dir', type=str, default='embeddings',
                     help='path to save the word vectors')
 parser.add_argument('--save_file', type=str, default='sgns',
                     help='path to save the word vectors')
-parser.add_argument('--emsize', type=int, default=20,
+parser.add_argument('--emsize', type=int, default=100,
                     help='size of word embeddings')
-parser.add_argument('--epochs', type=int, default=2,
+parser.add_argument('--epochs', type=int, default=15,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=1024,
                     help='batch size')
@@ -41,9 +41,9 @@ parser.add_argument('--min_count', type=int, default=5,
 #                    help='epsilon to be used in the LogitSGNS model')
 parser.add_argument('--gpu', default='0',
                     help='GPU to use')
-parser.add_argument('--target_prune', type=float, default=0.2,
+parser.add_argument('--target_prune', type=float, default=0.1,
                     help='to prune till')
-parser.add_argument('--prune_iter', type=int, default = 3,
+parser.add_argument('--prune_iter', type=int, default = 10,
                     help='prune steps')
 
 args = parser.parse_args()
