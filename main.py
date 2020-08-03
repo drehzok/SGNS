@@ -190,5 +190,7 @@ for prune_step in range(args.prune_iter):
     skip_gram_model.load_state()
     if use_cuda:
         skip_gram_model.cuda()
+    optimizer = torch.optim.Adam(skip_gram_model.parameters())
+
 
 pd.DataFrame.from_dict(logdict).to_csv('results.csv')
