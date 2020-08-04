@@ -18,7 +18,7 @@ class SkipGramModel(torch.nn.Module):
 
     def prune_step(self, pstep, prune_method = prune.l1_unstructured):
         prune_method(self.u_embeddings, name='weight', amount=pstep)
-        prune_method(self.v_embeddings, name='weight', amount=pstep)
+        #prune_method(self.v_embeddings, name='weight', amount=pstep)
 
     def fix_state(self,modelpath='model/initstate.pth'):
         cuda_using = next(self.parameters()).is_cuda
