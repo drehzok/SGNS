@@ -17,11 +17,11 @@ parser = argparse.ArgumentParser(description='PyTorch SGNS and LogitSGNS Models'
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--model', type=str, default='sgns',
                     help='model to use: sgns=SGNS, lsgns=LogitSGNS')
-parser.add_argument('--data', type=str, default='data/text8',
+parser.add_argument('--data', type=str, default='/raid/zhassylbekov/sungbae/data/text8',
                     help='location of the data corpus')
-parser.add_argument('--valid', type=str, default=None,
+parser.add_argument('--valid', type=str, default='/raid/zhassylbekov/sungbae/data/valid.txt',
                     help='location of the validation set')
-parser.add_argument('--save_dir', type=str, default='embeddings',
+parser.add_argument('--save_dir', type=str, default='/raid/zhassylbekov/sungbae/embeddings',
                     help='path to save the word vectors')
 parser.add_argument('--save_file', type=str, default='sgns',
                     help='path to save the word vectors')
@@ -122,6 +122,7 @@ if all_data_to_gpu:
 
 
 pstep = args.target_prune**(1/args.prune_iter)
+c_prune = 1.
 #prune stats must be tracked
 logdict = dict()
 for prune_step in range(args.prune_iter):
@@ -184,8 +185,10 @@ for prune_step in range(args.prune_iter):
 
         wsscore, googlescore = eval_skip_gram(skip_gram_model)
         loglist.append((wsscore,googlescore))
-    logdict[pstep**(prune_step)] = loglist
-    skip_gram_model.prune_step(pstep)
+    skip_gram_model.save_m(my_data.id2word, args.save_dir, fname = '/'+str(c_prune))
+    c_prune = pstep**(prune_step)
+    logdict[c_prune] = loglist
+    skip_gram_model.prune_step(1-pstep)
     skip_gram_model.cpu()
     skip_gram_model.load_state()
     if use_cuda:
@@ -193,4 +196,4 @@ for prune_step in range(args.prune_iter):
     optimizer = torch.optim.Adam(skip_gram_model.parameters())
 
 
-pd.DataFrame.from_dict(logdict).to_csv('results.csv')
+pd.DataFrame.from_dict(logdict).to_csv('/raid/zhassylbekov/sungbae/results.csv')

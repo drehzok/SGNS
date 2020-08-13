@@ -18,9 +18,9 @@ class SkipGramModel(torch.nn.Module):
 
     def prune_step(self, pstep, prune_method = prune.l1_unstructured):
         prune_method(self.u_embeddings, name='weight', amount=pstep)
-        #prune_method(self.v_embeddings, name='weight', amount=pstep)
+        prune_method(self.v_embeddings, name='weight', amount=pstep)
 
-    def fix_state(self,modelpath='model/initstate.pth'):
+    def fix_state(self,modelpath='/raid/zhassylbekov/sungbae/model/initstate.pth'):
         cuda_using = next(self.parameters()).is_cuda
         if cuda_using:
             self.cpu()
@@ -29,7 +29,7 @@ class SkipGramModel(torch.nn.Module):
         else:
             torch.save(self.state_dict(), modelpath)
 
-    def load_state(self, modelpath='model/initstate.pth'):
+    def load_state(self, modelpath='/raid/zhassylbekov/sungbae/model/initstate.pth'):
         umask = dict(self.u_embeddings.named_buffers())['weight_mask'].cpu()
         vmask = dict(self.v_embeddings.named_buffers())['weight_mask'].cpu()
         cuda_using = next(self.parameters()).is_cuda
@@ -66,6 +66,15 @@ class SkipGramModel(torch.nn.Module):
             for wid, w in id2word.items():
                 e = ' '.join(map(lambda x: str(x), embedding[wid]))
                 f.write('%s %s\n' % (w, e))
+
+    def save_m(self, id2word, folder_name, fname='m'):
+        w_emb = self.u_embeddings.weight.cpu().data.numpy()
+        c_emb = self.v_embeddings.weight.cpu().data.numpy()
+        m = w_emb @ c_emb.T
+        fname += '.csv'
+        np.savetxt(folder_name+fname, m, delimiter=',')
+
+
 
 '''
 class LogitSGNSModel(torch.nn.Module):
