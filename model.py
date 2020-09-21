@@ -1,6 +1,9 @@
 import torch
 import numpy as np
 from torch.nn.utils import prune
+import networkx as nx
+import collections
+import matplotlib.pyplot as plt
 
 
 class SkipGramModel(torch.nn.Module):
@@ -67,12 +70,43 @@ class SkipGramModel(torch.nn.Module):
                 e = ' '.join(map(lambda x: str(x), embedding[wid]))
                 f.write('%s %s\n' % (w, e))
 
-    def save_m(self, id2word, folder_name, fname='m'):
+    def graph_clustering(self,fname='1.png'):
         w_emb = self.u_embeddings.weight.cpu().data.numpy()
         c_emb = self.v_embeddings.weight.cpu().data.numpy()
-        m = w_emb @ c_emb.T
-        fname += '.csv'
-        np.savetxt(folder_name+fname, m, delimiter=',')
+        n = self.vocab_size
+        edgepair = []
+        for i in range(n):
+            for j in range(i+1,n):
+                m = np.dot(w_emb[i,:],c_emb[j,:])
+                p = 1/(np.exp(-m)+1)
+                adj = np.random.binomial(1, p)
+                if adj == 1:
+                    edgepair.append( (i+1,j+1))
+        G = nx.Graph()
+        G.add_nodes_from(range(1,n+1))
+        G.add_edges_from(edgepair)
+        clcoef = nx.average_clustering(G)
+
+        degree_sequence = sorted([d for n, d in G.degree()], reverse=True)  # degree sequence
+# print "Degree sequence", degree_sequence
+        degreeCount = collections.Counter(degree_sequence)
+        deg, cnt = zip(*degreeCount.items())
+
+        fig, ax = plt.subplots()
+        plt.bar(deg, cnt, width=0.80, color='b')
+
+        plt.title("Degree Histogram, clustering = %.6f" % clcoef)
+        plt.ylabel("Count")
+        plt.xlabel("Degree")
+        ax.set_xticks([d + 0.4 for d in deg])
+        ax.set_xticklabels(deg)
+        path = '/raid/zhassylbekov/sungbae/figs'
+        path += '/' + fname
+        plt.savefig(path)
+
+
+        
+
 
 
 
