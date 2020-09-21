@@ -75,17 +75,43 @@ class SkipGramModel(torch.nn.Module):
         c_emb = self.v_embeddings.weight.cpu().data.numpy()
         n = self.vocab_size
         edgepair = []
+        edgedict = dict()
         for i in range(n):
             for j in range(i+1,n):
                 m = np.dot(w_emb[i,:],c_emb[j,:])
                 p = 1/(np.exp(-m)+1)
                 adj = np.random.binomial(1, p)
                 if adj == 1:
-                    edgepair.append( (i+1,j+1))
-        G = nx.Graph()
-        G.add_nodes_from(range(1,n+1))
-        G.add_edges_from(edgepair)
-        clcoef = nx.average_clustering(G)
+                    if not (i+1 in edgedict):
+                        edgedict[i+1] = [j+1]
+                    else:
+                        edgedict[i+1].append(j+1)
+                    if not (j+1 in edgedict):
+                        edgedict[j+1] = [i+1]
+                    else:
+                        edgedict[j+1].append(i+1)
+
+        s_cls_coef = 0
+        for i in range(n):
+            loc_coef = 0
+            if i+1 in edgedict:
+                vi = edgedict[i+1]
+                ki = len(vi)
+                # remove i+1 edge
+                # define vij in a new nested loop
+                # vij
+                for j in vi:
+                    if j == i+1:
+                        continue
+                    for k in vi[j:]:
+                        if k == i+1:
+                            continue
+                        if k in edgedict[j]:
+                            loc_coef += 1
+                s_cls_coef += 2*loc_coef/(ki * (ki - 1))
+
+        avg_cls_coef = s_cls_coef / n
+
 
         degree_sequence = sorted([d for n, d in G.degree()], reverse=True)  # degree sequence
 # print "Degree sequence", degree_sequence
@@ -105,7 +131,7 @@ class SkipGramModel(torch.nn.Module):
         plt.savefig(path)
 
 
-        
+
 
 
 
