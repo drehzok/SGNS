@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from torch.nn.utils import prune
 import networkx as nx
+import networkit as nk
 import collections
 import matplotlib.pyplot as plt
 
@@ -74,45 +75,21 @@ class SkipGramModel(torch.nn.Module):
         w_emb = self.u_embeddings.weight.cpu().data.numpy()
         c_emb = self.v_embeddings.weight.cpu().data.numpy()
         n = self.vocab_size
-        edgepair = []
-        edgedict = dict()
+        Adjmat = np.zeros((n,n), dtype=bool)
         for i in range(n):
             for j in range(i+1,n):
                 m = np.dot(w_emb[i,:],c_emb[j,:])
                 p = 1/(np.exp(-m)+1)
                 adj = np.random.binomial(1, p)
                 if adj == 1:
-                    if not (i+1 in edgedict):
-                        edgedict[i+1] = [j+1]
-                    else:
-                        edgedict[i+1].append(j+1)
-                    if not (j+1 in edgedict):
-                        edgedict[j+1] = [i+1]
-                    else:
-                        edgedict[j+1].append(i+1)
+                    Adjmat[i,j] = True
+                    Adjmat[j,i] = True
 
-        s_cls_coef = 0
-        for i in range(n):
-            loc_coef = 0
-            if i+1 in edgedict:
-                vi = edgedict[i+1]
-                ki = len(vi)
-                # remove i+1 edge
-                # define vij in a new nested loop
-                # vij
-                for j in vi:
-                    if j == i+1:
-                        continue
-                    for k in vi[j:]:
-                        if k == i+1:
-                            continue
-                        if k in edgedict[j]:
-                            loc_coef += 1
-                s_cls_coef += 2*loc_coef/(ki * (ki - 1))
+        G = nx.from_scipy_sparse_matrix(Adjmat.tocsr())
 
-        avg_cls_coef = s_cls_coef / n
+        G_nk = nk.nxadapter.nx2nk(G)
 
-
+        clcoef = nk.globals.clustering(G,error=0.0005)
         degree_sequence = sorted([d for n, d in G.degree()], reverse=True)  # degree sequence
 # print "Degree sequence", degree_sequence
         degreeCount = collections.Counter(degree_sequence)
