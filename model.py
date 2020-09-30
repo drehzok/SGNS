@@ -5,6 +5,7 @@ import networkx as nx
 import networkit as nk
 import collections
 import matplotlib.pyplot as plt
+import scipy
 
 
 class SkipGramModel(torch.nn.Module):
@@ -85,6 +86,7 @@ class SkipGramModel(torch.nn.Module):
                     Adjmat[i,j] = True
                     Adjmat[j,i] = True
 
+        Adjmat = scipy.sparse.csr_matrix(Adjmat)
         G = nx.from_scipy_sparse_matrix(Adjmat.tocsr())
 
         G_nk = nk.nxadapter.nx2nk(G)
