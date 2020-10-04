@@ -91,7 +91,7 @@ class SkipGramModel(torch.nn.Module):
 
         G_nk = nk.nxadapter.nx2nk(G)
 
-        clcoef = nk.globals.clustering(G,error=0.0005)
+        clcoef = nk.globals.clustering(G_nk,error=0.0005)
         degree_sequence = sorted([d for n, d in G.degree()], reverse=True)  # degree sequence
 # print "Degree sequence", degree_sequence
         degreeCount = collections.Counter(degree_sequence)
