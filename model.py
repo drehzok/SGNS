@@ -92,17 +92,15 @@ class SkipGramModel(torch.nn.Module):
         G_nk = nk.nxadapter.nx2nk(G)
 
         clcoef = nk.globals.clustering(G_nk,error=0.0005)
-        degree_sequence = sorted([d for n, d in G.degree()], reverse=True)  # degree sequence
-# print "Degree sequence", degree_sequence
-        degreeCount = collections.Counter(degree_sequence)
-        deg, cnt = zip(*degreeCount.items())
 
         fig, ax = plt.subplots()
-        plt.bar(deg, cnt, width=0.80, color='b')
+        degrees = [G.degree(n) for n in G.nodes()]
+        ax.hist(degrees,bins=80)
 
         plt.title("Degree Histogram, clustering = %.6f" % clcoef)
         plt.ylabel("Count")
         plt.xlabel("Degree")
+
         ax.set_xticks([d + 0.4 for d in deg])
         ax.set_xticklabels(deg)
         path = '/raid/zhassylbekov/sungbae/figs'
