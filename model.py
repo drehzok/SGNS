@@ -101,8 +101,7 @@ class SkipGramModel(torch.nn.Module):
         plt.ylabel("Count")
         plt.xlabel("Degree")
 
-        ax.set_xticks([d + 0.4 for d in deg])
-        ax.set_xticklabels(deg)
+
         path = '/raid/zhassylbekov/sungbae/figs'
         path += '/' + fname
         plt.savefig(path)
