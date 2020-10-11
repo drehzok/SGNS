@@ -95,7 +95,7 @@ class SkipGramModel(torch.nn.Module):
 
         fig, ax = plt.subplots()
         degrees = [G.degree(n) for n in G.nodes()]
-        ax.hist(degrees,bins=80)
+        ax.hist(degrees,bins=80,range=(0,20000))
 
         plt.title("Degree Histogram, clustering = %.6f" % clcoef)
         plt.ylabel("Count")
