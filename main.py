@@ -41,7 +41,7 @@ parser.add_argument('--min_count', type=int, default=5,
 #                    help='epsilon to be used in the LogitSGNS model')
 parser.add_argument('--gpu', default='0',
                     help='GPU to use')
-parser.add_argument('--target_prune', type=float, default=0.3,
+parser.add_argument('--target_prune', type=float, default=0.01,
                     help='to prune till')
 parser.add_argument('--prune_iter', type=int, default = 20,
                     help='prune steps')
