@@ -27,7 +27,7 @@ parser.add_argument('--save_file', type=str, default='sgns',
                     help='path to save the word vectors')
 parser.add_argument('--emsize', type=int, default=150,
                     help='size of word embeddings')
-parser.add_argument('--epochs', type=int, default=20,
+parser.add_argument('--epochs', type=int, default=2,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=1024,
                     help='batch size')
@@ -185,7 +185,7 @@ for prune_step in range(args.prune_iter):
 
         wsscore, googlescore = eval_skip_gram(skip_gram_model)
         loglist.append((wsscore,googlescore))
-    if prune_step % 3 ==0 or prune_step==args.prune_iter - 1 :
+    if prune_step % 1 ==0 or prune_step==args.prune_iter - 1 :
         skip_gram_model.graph_clustering(fname = str(c_prune)+'.png')
     c_prune = pstep**(prune_step)
     logdict[c_prune] = loglist
