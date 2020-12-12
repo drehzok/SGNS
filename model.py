@@ -27,6 +27,7 @@ class SkipGramModel(torch.nn.Module):
             prune.l1_unstructured(self.v_embeddings, name='weight', amount=pstep)
         elif prune_mode == 'change':
             self.prune_step_change(pstep)
+            #how far does it move
 
     def prune_step_change(self, pstep):
         cuda_using = next(self.parameters()).is_cuda
