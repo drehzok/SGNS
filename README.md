@@ -2,7 +2,7 @@
 Forked from zh3nis/SGNS
 
 ### Requirements
-Code is written in Python 3.6 and requires Pytorch 1.3+. It also requires the following Python modules: `numpy`, `gensim`, `argparse`, `gdown`. You can install them via:
+Code is written in Python 3.7 and requires Pytorch 1.4+. It also requires the following Python modules: `numpy`, `gensim`, `argparse`, `gdown`. You can install them via:
 ```bash
 pip install numpy gensim argparse gdown
 ```
