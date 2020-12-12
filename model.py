@@ -8,63 +8,59 @@ import matplotlib.pyplot as plt
 import scipy
 
 
-'''
-Should be adapted to do pruning with magnitude change criterion
-'''
-# class FooBarPruningMethod(prune.BasePruningMethod):
-    # """Prune every other entry in a tensor
-    # """
-    # PRUNING_TYPE = 'unstructured'
-#
-    # def compute_mask(self, t, default_mask):
-        # mask = default_mask.clone()
-        # mask.view(-1)[::2] = 0
-        # return mask
-#
-# def foobar_unstructured(module, name):
-    # """Prunes tensor corresponding to parameter called `name` in `module`
-    # by removing every other entry in the tensors.
-    # Modifies module in place (and also return the modified module)
-    # by:
-    # 1) adding a named buffer called `name+'_mask'` corresponding to the
-    # binary mask applied to the parameter `name` by the pruning method.
-    # The parameter `name` is replaced by its pruned version, while the
-    # original (unpruned) parameter is stored in a new parameter named
-    # `name+'_orig'`.
-#
-    # Args:
-        # module (nn.Module): module containing the tensor to prune
-        # name (string): parameter name within `module` on which pruning
-                # will act.
-#
-    # Returns:
-        # module (nn.Module): modified (i.e. pruned) version of the input
-            # module
-#
-    # Examples:
-        # >>> m = nn.Linear(3, 4)
-        # >>> foobar_unstructured(m, name='bias')
-    # """
-    # FooBarPruningMethod.apply(module, name)
-    # return module
-
-
 class SkipGramModel(torch.nn.Module):
 
     def __init__(self, vocab_size, emb_dimension):
         super(SkipGramModel, self).__init__()
         self.vocab_size = vocab_size
         self.emb_dimension = emb_dimension
-        self.u_embeddings = torch.nn.Embedding(vocab_size, emb_dimension)
-        self.v_embeddings = torch.nn.Embedding(vocab_size, emb_dimension)
+        self.u_embeddings = torch.nn.Embedding(self.vocab_size, self.emb_dimension)
+        self.v_embeddings = torch.nn.Embedding(self.vocab_size, self.emb_dimension)
 
         initrange = 1.0 / self.emb_dimension
         torch.nn.init.uniform_(self.u_embeddings.weight.data, -initrange, initrange)
         torch.nn.init.constant_(self.v_embeddings.weight.data, 0)
 
-    def prune_step(self, pstep, prune_method = prune.l1_unstructured):
-        prune_method(self.u_embeddings, name='weight', amount=pstep)
-        prune_method(self.v_embeddings, name='weight', amount=pstep)
+    def prune_step(self, pstep, prune_mode = 'classic'):
+        if prune_mode == 'classic':
+            prune.l1_unstructured(self.u_embeddings, name='weight', amount=pstep)
+            prune.l1_unstructured(self.v_embeddings, name='weight', amount=pstep)
+        elif prune_mode == 'magnitude change':
+            self.prune_step_magnitude_change(pstep)
+
+    def prune_step_magnitude_change(self, pstep):
+        cuda_using = next(self.parameters()).is_cuda
+        #reimport fixed u and v weights
+        ui,vi = self.load_weights()
+        #fix current weights
+        uc, vc = ( self.u_embeddings.weight.data.clone().cpu(),
+                self.v_embeddings.weight.data.clone().cpu() )
+        #fix current masks
+        if not list(self.u_embeddings.named_buffers()):
+            prune.Identity(self.u_embeddings, name='weight')
+            prune.Identity(self.v_embeddings, name='weight')
+        umask = dict(self.u_embeddings.named_buffers())['weight_mask'].cpu()
+        vmask = dict(self.v_embeddings.named_buffers())['weight_mask'].cpu()
+
+        u_temp = torch.nn.Embedding(self.vocab_size, self.emb_dimension)
+        v_temp = torch.nn.Embedding(self.vocab_size, self.emb_dimension)
+        u_temp.weight.data.copy_(uc-ui)
+        v_temp.weight.data.copy_(vc-vi)
+        prune.custom_from_mask(u_temp,name='weight',mask=umask)
+        prune.custom_from_mask(v_temp,name='weight',mask=vmask)
+        if cuda_using:
+            u_temp.cuda()
+            v_temp.cuda()
+        prune.l1_unstructured(u_temp, name='weight', amount=pstep)
+        prune.l1_unstructured(v_temp, name='weight', amount=pstep)
+        #checked, cuda <-> cpu crash DNE
+        u_temp.weight.data.copy_(uc)
+        v_temp.weight.data.copy_(vc)
+
+        self.u_embeddings = u_temp
+        self.v_embeddings = v_temp
+
+
 
     def fix_state(self, targetpath='/raid/zhassylbekov/sungbae/model/'):
         cuda_using = next(self.parameters()).is_cuda
@@ -78,7 +74,7 @@ class SkipGramModel(torch.nn.Module):
     def load_weights(self,targetpath='/raid/zhassylbekov/sungbae/model/'):
         temp = SkipGramModel(self.vocab_size, self.emb_dimension)
         temp.load_state_dict(torch.load(targetpath+'initstate.pth'))
-        return temp.u_embeddings.weight, temp.v_embeddings.wegiht
+        return temp.u_embeddings.weight.data.clone(), temp.v_embeddings.wegiht.data.clone()
 
     def load_state(self, modelpath='/raid/zhassylbekov/sungbae/model/initstate.pth'):
         umask = dict(self.u_embeddings.named_buffers())['weight_mask'].cpu()
