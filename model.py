@@ -25,11 +25,12 @@ class SkipGramModel(torch.nn.Module):
         if prune_mode == 'classic':
             prune.l1_unstructured(self.u_embeddings, name='weight', amount=pstep)
             prune.l1_unstructured(self.v_embeddings, name='weight', amount=pstep)
-        elif prune_mode == 'change':
-            self.prune_step_change(pstep)
-            #how far does it move
+        else:
+            #non-l1 simple pruning scheme
+            self.prune_step_change(pstep,prune_mode)
 
-    def prune_step_change(self, pstep):
+
+    def prune_step_change(self, pstep, prune_mode):
         cuda_using = next(self.parameters()).is_cuda
         #reimport fixed u and v weights
         ui,vi = self.load_weights()
@@ -45,8 +46,16 @@ class SkipGramModel(torch.nn.Module):
 
         u_temp = torch.nn.Embedding(self.vocab_size, self.emb_dimension)
         v_temp = torch.nn.Embedding(self.vocab_size, self.emb_dimension)
-        u_temp.weight.data.copy_(uc-ui)
-        v_temp.weight.data.copy_(vc-vi)
+
+        if prune_mode=='change':
+            f = lambda x,y: x-y
+        elif prune_mode=='absolute change':
+            f = lambda x,y: torch.abs(x) - torch.abs(y)
+        # weights to be left must have higher function outputs
+        u_temp.weight.data.copy_(f(uc,ui))
+        v_temp.weight.data.copy_(f(vc-vi))
+
+        
         prune.custom_from_mask(u_temp,name='weight',mask=umask)
         prune.custom_from_mask(v_temp,name='weight',mask=vmask)
         if cuda_using:
