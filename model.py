@@ -51,11 +51,13 @@ class SkipGramModel(torch.nn.Module):
             f = lambda x,y: x-y
         elif prune_mode=='absolute change':
             f = lambda x,y: torch.abs(x) - torch.abs(y)
+        else:
+            f = lambda x,y: x
         # weights to be left must have higher function outputs
         u_temp.weight.data.copy_(f(uc,ui))
-        v_temp.weight.data.copy_(f(vc-vi))
+        v_temp.weight.data.copy_(f(vc,vi))
 
-        
+
         prune.custom_from_mask(u_temp,name='weight',mask=umask)
         prune.custom_from_mask(v_temp,name='weight',mask=vmask)
         if cuda_using:
