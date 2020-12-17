@@ -189,7 +189,7 @@ for prune_step in range(args.prune_iter):
     skip_gram_model.graph_clustering(fname = str(c_prune)+'.png')
     c_prune = pstep**(prune_step)
     logdict[c_prune] = loglist
-    skip_gram_model.prune_step(1-pstep)
+    skip_gram_model.prune_step(1-pstep,prune_mode='change')
     skip_gram_model.cpu()
     skip_gram_model.load_state()
     if use_cuda:
