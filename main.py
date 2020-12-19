@@ -186,7 +186,7 @@ for prune_step in range(args.prune_iter):
         wsscore, googlescore = eval_skip_gram(skip_gram_model)
         loglist.append((wsscore,googlescore))
     #if prune_step % 1 ==0 or prune_step==args.prune_iter - 1 :
-    skip_gram_model.graph_clustering(fname = str(c_prune)+'.png')
+    #skip_gram_model.graph_clustering(fname = str(c_prune)+'.png')
     c_prune = pstep**(prune_step)
     logdict[c_prune] = loglist
     skip_gram_model.prune_step(1-pstep,prune_mode='change')
