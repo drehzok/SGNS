@@ -86,7 +86,7 @@ class SkipGramModel(torch.nn.Module):
     def load_weights(self,targetpath='/raid/zhassylbekov/sungbae/model/'):
         temp = SkipGramModel(self.vocab_size, self.emb_dimension)
         temp.load_state_dict(torch.load(targetpath+'initstate.pth'))
-        return temp.u_embeddings.weight.data.clone(), temp.v_embeddings.wegiht.data.clone()
+        return temp.u_embeddings.weight.data.clone(), temp.v_embeddings.weight.data.clone()
 
     def load_state(self, modelpath='/raid/zhassylbekov/sungbae/model/initstate.pth'):
         umask = dict(self.u_embeddings.named_buffers())['weight_mask'].cpu()
