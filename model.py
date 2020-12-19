@@ -23,7 +23,7 @@ class SkipGramModel(torch.nn.Module):
 
     def prune_step(self, pstep, prune_mode = 'classic'):
         if prune_mode == 'classic':
-            prune.l1_unstructured(self.u_embeddings, name='weight', amount=pstep)
+            #prune.l1_unstructured(self.u_embeddings, name='weight', amount=pstep)
             prune.l1_unstructured(self.v_embeddings, name='weight', amount=pstep)
         else:
             #non-l1 simple pruning scheme
@@ -39,12 +39,12 @@ class SkipGramModel(torch.nn.Module):
                 self.v_embeddings.weight.data.clone().cpu() )
         #fix current masks
         if not list(self.u_embeddings.named_buffers()):
-            prune.Identity(self.u_embeddings, name='weight')
+            #prune.Identity(self.u_embeddings, name='weight')
             prune.Identity(self.v_embeddings, name='weight')
-        umask = dict(self.u_embeddings.named_buffers())['weight_mask'].cpu()
+        #umask = dict(self.u_embeddings.named_buffers())['weight_mask'].cpu()
         vmask = dict(self.v_embeddings.named_buffers())['weight_mask'].cpu()
 
-        u_temp = torch.nn.Embedding(self.vocab_size, self.emb_dimension)
+        #u_temp = torch.nn.Embedding(self.vocab_size, self.emb_dimension)
         v_temp = torch.nn.Embedding(self.vocab_size, self.emb_dimension)
 
         if prune_mode=='change':
@@ -54,16 +54,16 @@ class SkipGramModel(torch.nn.Module):
         else:
             f = lambda x,y: x
         # weights to be left must have higher function outputs
-        u_temp.weight.data.copy_(f(uc,ui))
+        #u_temp.weight.data.copy_(f(uc,ui))
         v_temp.weight.data.copy_(f(vc,vi))
 
 
-        prune.custom_from_mask(u_temp,name='weight',mask=umask)
+        #prune.custom_from_mask(u_temp,name='weight',mask=umask)
         prune.custom_from_mask(v_temp,name='weight',mask=vmask)
         if cuda_using:
             u_temp.cuda()
             v_temp.cuda()
-        prune.l1_unstructured(u_temp, name='weight', amount=pstep)
+        #prune.l1_unstructured(u_temp, name='weight', amount=pstep)
         prune.l1_unstructured(v_temp, name='weight', amount=pstep)
         #checked, cuda <-> cpu crash DNE
         u_temp.weight.data.copy_(uc)
@@ -89,18 +89,18 @@ class SkipGramModel(torch.nn.Module):
         return temp.u_embeddings.weight.data.clone(), temp.v_embeddings.weight.data.clone()
 
     def load_state(self, modelpath='/raid/zhassylbekov/sungbae/model/initstate.pth'):
-        umask = dict(self.u_embeddings.named_buffers())['weight_mask'].cpu()
+    #    umask = dict(self.u_embeddings.named_buffers())['weight_mask'].cpu()
         vmask = dict(self.v_embeddings.named_buffers())['weight_mask'].cpu()
         cuda_using = next(self.parameters()).is_cuda
         self = SkipGramModel(self.vocab_size,self.emb_dimension)
         if cuda_using:
             self.load_state_dict(torch.load(modelpath))
-            prune.custom_from_mask(self.u_embeddings,name='weight',mask=umask)
+    #        prune.custom_from_mask(self.u_embeddings,name='weight',mask=umask)
             prune.custom_from_mask(self.v_embeddings,name='weight',mask=vmask)
             self.cuda()
         else:
             self.load_state_dict(torch.load(modelpath))
-            prune.custom_from_mask(self.u_embeddings,name='weight',mask=umask)
+    #        prune.custom_from_mask(self.u_embeddings,name='weight',mask=umask)
             prune.custom_from_mask(self.v_embeddings,name='weight',mask=vmask)
 
     def forward(self, pos_u, pos_v, neg_v):
