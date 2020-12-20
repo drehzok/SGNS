@@ -39,8 +39,8 @@ class SkipGramModel(torch.nn.Module):
                 self.v_embeddings.weight.data.clone().cpu() )
         #fix current masks
         if not list(self.u_embeddings.named_buffers()):
-            #prune.Identity(self.u_embeddings, name='weight')
-            prune.Identity(self.v_embeddings, name='weight')
+            #prune.identity(self.u_embeddings, name='weight')
+            prune.identity(self.v_embeddings, name='weight')
         #umask = dict(self.u_embeddings.named_buffers())['weight_mask'].cpu()
         vmask = dict(self.v_embeddings.named_buffers())['weight_mask'].cpu()
 
