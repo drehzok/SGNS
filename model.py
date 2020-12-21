@@ -61,15 +61,15 @@ class SkipGramModel(torch.nn.Module):
         #prune.custom_from_mask(u_temp,name='weight',mask=umask)
         prune.custom_from_mask(v_temp,name='weight',mask=vmask)
         if cuda_using:
-            u_temp.cuda()
+        #    u_temp.cuda()
             v_temp.cuda()
         #prune.l1_unstructured(u_temp, name='weight', amount=pstep)
         prune.l1_unstructured(v_temp, name='weight', amount=pstep)
         #checked, cuda <-> cpu crash DNE
-        u_temp.weight.data.copy_(uc)
+        #u_temp.weight.data.copy_(uc)
         v_temp.weight.data.copy_(vc)
 
-        self.u_embeddings = u_temp
+        #self.u_embeddings = u_temp
         self.v_embeddings = v_temp
 
 
